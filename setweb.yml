@@ -1,0 +1,73 @@
+
+---
+- name: webistall
+  hosts: all
+  become: yes
+
+  tasks:
+  - name: install_nginx
+    apt:
+      name: nginx
+      state: latest
+
+  - name: install_MySQL
+    apt:
+      name: mysql-server
+      state: latest
+
+  - name: install_PHP-fpm
+    apt:
+      name: php-fpm
+      state: latest
+
+  - name: install_PHP-mysql
+    apt:
+      name: php-mysql
+      state: latest
+
+  - name: create_index.php
+    copy:
+      dest: /var/www/html/index.php
+      content: |
+        <?php
+        phpinfo();
+        ?>
+
+  - name: delete_config_file_nginx
+    ignore_errors: yes
+    file:
+      state: absent
+      path: /etc/nginx/sites-available/default
+
+  - name: create_config_file_nginx
+    ignore_errors: yes
+    file:
+      path: /etc/nginx/sites-available/default
+
+      state: touch
+
+  - name: setup_config_Nginx_for_PHP
+    blockinfile:
+      path: /etc/nginx/sites-available/default
+      block: |
+        server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        root /var/www/html;
+        index index.php index.html index.htm index.nginx-debian.html;
+        server_name _;
+        location / {
+        try_files $uri $uri/ =404;
+          }
+        location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+          }
+        }
+
+  - name: reboot_Nginx
+    service:
+      name: nginx
+      state: restarted
